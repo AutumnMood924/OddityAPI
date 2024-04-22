@@ -686,7 +686,7 @@ function G.UIDEF.use_and_sell_buttons(card)
 		end
 	end
 	
-	if card.config.center.key and (card.area == G.pack_cards and G.pack_cards) and G.ARGS.is_oddity_booster then
+	if card.config.center.key and (card.area == G.pack_cards and G.pack_cards) and card.ability.set == "Oddity" then
 		return {
 			n=G.UIT.ROOT, config = {padding = 0, colour = G.C.CLEAR}, nodes={
 				{n=G.UIT.R, config={mid = true}, nodes={
