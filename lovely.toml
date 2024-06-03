@@ -1,0 +1,229 @@
+[manifest]
+version = "1.0.0"
+dump_lua = true
+priority = 10
+
+# generate_card_ui()
+[[patches]]
+[patches.pattern]
+target = "functions/common_events.lua"
+pattern = "elseif _c.name == 'Mega Buffoon Pack' then desc_override = 'p_buffoon_mega'; loc_vars = {_c.config.choose, _c.config.extra}"
+position = "after"
+payload = '''elseif _c.name == 'Oddity Pack' then desc_override = 'p_oddity_normal'; loc_vars = {_c.config.choose, _c.config.extra}
+elseif _c.name == 'Jumbo Oddity Pack' then desc_override = 'p_oddity_jumbo'; loc_vars = {_c.config.choose, _c.config.extra}
+elseif _c.name == 'Mega Oddity Pack' then desc_override = 'p_oddity_mega'; loc_vars = {_c.config.choose, _c.config.extra}'''
+match_indent = true
+overwrite = false
+
+# Card:open()
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = 'if self.ability.set == "Booster" then'
+position = "before"
+payload = '''G.ARGS.is_oddity_booster = false'''
+match_indent = true
+overwrite = false
+
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = "G.GAME.pack_choices = self.config.center.config.choose or 1"
+position = "before"
+payload = '''if self.ability.name:find('Oddity') then
+	G.STATE = G.STATES.STANDARD_PACK
+	G.ARGS.is_oddity_booster = true
+	G.GAME.pack_size = self.ability.extra
+end'''
+match_indent = true
+overwrite = false
+
+[[patches]]
+[patches.pattern]
+target = "card.lua"
+pattern = '''card = create_card("Joker", G.pack_cards, nil, nil, true, true, nil, 'buf')'''
+position = "after"
+payload = '''elseif self.ability.name:find('Oddity') then
+	card = create_card("Oddity", G.pack_cards, nil, nil, true, true, nil, 'odd')
+'''
+match_indent = true
+overwrite = false
+
+# create_UIBox_standard_pack()
+[[patches]]
+[patches.pattern]
+target = "functions/UI_definitions.lua"
+pattern = "{n=G.UIT.O, config={object = DynaText({string = localize('k_standard_pack'), colours = {G.C.WHITE},shadow = true, rotate = true, bump = true, spacing =2, scale = 0.7, maxw = 4, pop_in = 0.5})}}"
+position = "before"
+payload = '''G.ARGS.is_oddity_booster and {n=G.UIT.O, config={object = DynaText({string = localize('k_oddity_pack'), colours = {G.C.WHITE},shadow = true, rotate = true, bump = true, spacing =2, scale = 0.7, maxw = 4, pop_in = 0.5})}} or'''
+match_indent = true
+overwrite = false
+
+# G.UIDEF.card_focus_ui()
+[[patches]]
+[patches.pattern]
+target = "functions/UI_definitions.lua"
+pattern = "if ((card.area == G.consumeables and G.consumeables) or (card.area == G.pack_cards and G.pack_cards)) and"
+position = "before"
+payload = '''if card.ability.set == "Oddity" and (card.area == G.pack_cards and G.pack_cards) then
+    base_attach.children.use = G.UIDEF.card_focus_button{
+      card = card, parent = base_attach, type = 'select',
+      func = 'can_select_card', button = 'use_card', card_width = card_width
+    }
+else'''
+match_indent = true
+overwrite = false
+
+[[patches]]
+[patches.pattern]
+target = "functions/UI_definitions.lua"
+pattern = "if (card.area == G.jokers and G.jokers or card.area == G.consumeables and G.consumeables) and G.STATE ~= G.STATES.TUTORIAL then --Add a sell button"
+position = "before"
+payload = '''end'''
+match_indent = true
+overwrite = false
+
+# G.UIDEF.use_and_sell_buttons()
+[[patches]]
+[patches.pattern]
+target = "functions/UI_definitions.lua"
+pattern = "if (card.area == G.pack_cards and G.pack_cards) then"
+position = "after"
+payload = '''if card.ability.set == "Oddity" then
+    return {
+      n=G.UIT.ROOT, config = {padding = 0, colour = G.C.CLEAR}, nodes={
+        {n=G.UIT.R, config={ref_table = card, r = 0.08, padding = 0.1, align = "bm", minw = 0.5*card.T.w - 0.15, maxw = 0.9*card.T.w - 0.15, minh = 0.3*card.T.h, hover = true, shadow = true, colour = G.C.UI.BACKGROUND_INACTIVE, one_press = true, button = 'use_card', func = 'can_select_card'}, nodes={
+          {n=G.UIT.T, config={text = localize('b_select'),colour = G.C.UI.TEXT_LIGHT, scale = 0.45, shadow = true}}
+        }},
+    }}
+end'''
+match_indent = true
+overwrite = false
+
+# G.FUNCS.can_select_card()
+[[patches]]
+[patches.pattern]
+target = "functions/button_callbacks.lua"
+pattern = "if e.config.ref_table.ability.set ~= 'Joker' or (e.config.ref_table.edition and e.config.ref_table.edition.negative) or #G.jokers.cards < G.jokers.config.card_limit then"
+position = "before"
+payload = '''if e.config.ref_table.ability.set == 'Oddity' then
+	if #G.consumeables.cards < G.consumeables.config.card_limit then
+		e.config.colour = G.C.GREEN
+		e.config.button = 'use_card'
+	elseif #G.consumeables.cards >= G.consumeables.config.card_limit then
+		e.config.colour = G.C.UI.BACKGROUND_INACTIVE
+		e.config.button = nil
+	end
+else
+'''
+match_indent = true
+overwrite = false
+
+# this is dumb
+[[patches]]
+[patches.pattern]
+target = "functions/button_callbacks.lua"
+pattern = "G.FUNCS.can_sell_card = function(e)"
+position = "before"
+payload = '''end'''
+match_indent = true
+overwrite = false
+
+# G.FUNCS.use_card()
+[[patches]]
+[patches.pattern]
+target = "functions/button_callbacks.lua"
+pattern = "if card.area then card.area:remove_card(card) end"
+position = "before"
+payload = '''local oddityapi_old_card_area = card.area'''
+match_indent = true
+overwrite = false
+
+[[patches]]
+[patches.pattern]
+target = "functions/button_callbacks.lua"
+pattern = "if G.STATE == G.STATES.TAROT_PACK or G.STATE == G.STATES.PLANET_PACK or G.STATE == G.STATES.SPECTRAL_PACK then"
+position = "before"
+payload = '''if card.ability.set == "Oddity" and oddityapi_old_card_area and oddityapi_old_card_area == G.pack_cards then
+	card:add_to_deck()
+	G.consumeables:emplace(card)
+	play_sound('card1', 0.8, 0.6)
+	play_sound('generic1')
+	dont_dissolve = true
+	delay_fac = 0.2
+else
+'''
+match_indent = true
+overwrite = false
+
+[[patches]]
+[patches.pattern]
+target = "functions/button_callbacks.lua"
+pattern = "G.jokers.cards[i]:calculate_joker({using_consumeable = true, consumeable = card})"
+position = "after"
+payload = '''end'''
+match_indent = true
+overwrite = false
+
+# get_current_pool()
+[[patches]]
+[patches.pattern]
+target = 'functions/common_events.lua'
+pattern = "for k, v in ipairs(_starting_pool) do"
+match_indent = true
+overwrite = false
+position = 'before'
+payload = '''
+if _legendary and _type == 'Oddity' then
+	_starting_pool, _pool_key = SMODS.ConsumableTypes[_type].rarity_pools[-4], _type.."-4"..(_append or '')
+end
+'''
+
+# ease_background_colour_blind()
+[[patches]]
+[patches.pattern]
+target = 'functions/common_events.lua'
+pattern = "ease_colour(G.C.DYN_UI.MAIN, G.C.RED)"
+match_indent = true
+overwrite = false
+position = 'before'
+payload = '''
+if G.ARGS.is_oddity_booster then
+	ease_colour(G.C.DYN_UI.MAIN, mix_colours(G.C.SECONDARY_SET.Oddity, G.C.BLACK, 0.9))
+else
+'''
+
+[[patches]]
+[patches.pattern]
+target = 'functions/common_events.lua'
+pattern = "ease_colour(G.C.DYN_UI.MAIN, G.C.RED)"
+match_indent = true
+overwrite = false
+position = 'after'
+payload = '''
+end
+'''
+
+[[patches]]
+[patches.pattern]
+target = 'functions/common_events.lua'
+pattern = "ease_background_colour{new_colour = darken(G.C.BLACK, 0.2), special_colour = G.C.RED, contrast = 3}"
+match_indent = true
+overwrite = false
+position = 'before'
+payload = '''
+if G.ARGS.is_oddity_booster then
+	ease_background_colour{new_colour = G.C.SECONDARY_SET.Oddity, special_colour = darken(G.C.BLACK, 0.2), contrast = 2}
+else
+'''
+
+[[patches]]
+[patches.pattern]
+target = 'functions/common_events.lua'
+pattern = "ease_background_colour{new_colour = darken(G.C.BLACK, 0.2), special_colour = G.C.RED, contrast = 3}"
+match_indent = true
+overwrite = false
+position = 'after'
+payload = '''
+end
+'''
